@@ -1,21 +1,34 @@
 from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
 from astrbot.api.star import Context, Star, register
-from astrbot.api import logger
+import requests
 
-@register("helloworld", "YourName", "一个简单的 Hello World 插件", "1.0.0")
-class MyPlugin(Star):
+@register("tianmei_video", "Your Name", "甜妹视频插件", "1.0.0", "repo url")
+class TianmeiVideoPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
-    
-    # 注册指令的装饰器。指令名为 helloworld。注册成功后，发送 `/helloworld` 就会触发这个指令，并回复 `你好, {user_name}!`
-    @filter.command("helloworld")
-    async def helloworld(self, event: AstrMessageEvent):
-        '''这是一个 hello world 指令''' # 这是 handler 的描述，将会被解析方便用户了解插件内容。建议填写。
-        user_name = event.get_sender_name()
-        message_str = event.message_str # 用户发的纯文本消息字符串
-        message_chain = event.get_messages() # 用户所发的消息的消息链 # from astrbot.api.message_components import *
-        logger.info(message_chain)
-        yield event.plain_result(f"Hello, {user_name}, 你发了 {message_str}!") # 发送一条纯文本消息
 
-    async def terminate(self):
-        '''可选择实现 terminate 函数，当插件被卸载/停用时会调用。'''
+    @filter.command("甜妹视频")
+    async def get_tianmei_video(self, event: AstrMessageEvent):
+        try:
+            # 发送 GET 请求到接口地址
+            response = requests.get("https://api.52vmy.cn/api/video/tianmei", timeout=10)
+            response.raise_for_status()  # 检查请求是否成功
+
+            # 解析返回的 JSON 数据
+            data = response.json()
+            if data["code"] == 200 and data["msg"] == "成功":
+                video_url = data["data"]["video"]
+
+                # 发送视频链接给用户
+                yield event.plain_result(f"甜妹视频来啦！点击观看：\n{video_url}")
+            else:
+                yield event.plain_result("获取甜妹视频失败，服务器返回错误信息。")
+
+        except requests.exceptions.RequestException as e:
+            # 处理请求异常
+            error_message = f"获取甜妹视频失败，可能是网络问题或接口调用失败。请稍后再试。错误信息：{str(e)}"
+            yield event.plain_result(error_message)
+        except Exception as e:
+            # 处理其他异常
+            error_message = f"获取甜妹视频时发生错误：{str(e)}"
+            yield event.plain_result(error_message)
